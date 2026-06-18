@@ -1,0 +1,32 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs / runtime
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+node_modules/
+
+# Docker volumes (when developers run locally)
+data/
+mongo-data/
+
+# Submodules (the meta-repo references children as submodules; their dirs may exist locally)
+modules/*/node_modules/
+modules/*/.env
+modules/*/.env.*
+!modules/*/.env.example

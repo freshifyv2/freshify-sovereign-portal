@@ -1,0 +1,227 @@
+# Sovereign Portal — single-command local stack
+#
+# Boots the three foundation modules (Users, Customers, Workspaces) + the
+# portal shell + the Customer Support reference module (BE, FE, agent sidecar)
+# + MongoDB. Total: 8 services. Ready in ~90 seconds on a warm cache.
+#
+# Usage:
+#   git clone --recursive https://github.com/freshifyv2/freshify-sovereign-portal.git
+#   cd sovereign-portal
+#   cp .env.example .env
+#   docker compose up
+#
+# Then open http://localhost:3000
+#
+# Reset everything (drop database, rebuild images):
+#   docker compose down -v && docker compose up --build
+#
+# Notes:
+#   - The `--recursive` flag pulls each module as a git submodule. If you
+#     cloned without it, run: git submodule update --init
+#   - On first boot the foundation modules seed a default tenant with one
+#     bootstrap operator (login: operator@example.com / OTP printed to logs).
+#   - The Customer Support agent runs against the bundled mock LLM provider.
+#     To swap in a real provider, edit modules/support-agent/.env and set
+#     LLM_PROVIDER + the corresponding API key, then restart that one service.
+
+services:
+  # ---------- shared infrastructure ----------
+
+  mongo:
+    image: mongo:7
+    container_name: portal-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  # ---------- foundation: Users module ----------
+
+  users-be:
+    build:
+      context: ./modules/users-be
+      dockerfile: ../../docker/node-be.Dockerfile
+    container_name: portal-users-be
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      PORT: 4001
+      MONGO_URI: mongodb://mongo:27017/sovereign-users
+      JWT_ISSUER: sovereign-portal-local
+      JWT_AUDIENCE: sovereign-portal-local
+      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-dev-mock}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-dev-mock}
+      TWILIO_VERIFY_SID: ${TWILIO_VERIFY_SID:-dev-mock}
+      OTP_PROVIDER: ${OTP_PROVIDER:-console}  # 'console' prints OTP to logs for local dev
+    ports:
+      - "4001:4001"
+
+  users-fe:
+    build:
+      context: ./modules/users-fe
+      dockerfile: ../../docker/vite-fe.Dockerfile
+    container_name: portal-users-fe
+    restart: unless-stopped
+    depends_on:
+      - users-be
+    environment:
+      PORT: 3001
+      VITE_USERS_BE_URL: http://localhost:4001
+      VITE_PORTAL_SHELL_URL: http://localhost:3000
+    ports:
+      - "3001:3001"
+
+  # ---------- foundation: Customers (canonical key: 'companies') module ----------
+
+  companies-be:
+    build:
+      context: ./modules/companies-be
+      dockerfile: ../../docker/node-be.Dockerfile
+    container_name: portal-companies-be
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      users-be:
+        condition: service_started
+    environment:
+      PORT: 4002
+      MONGO_URI: mongodb://mongo:27017/sovereign-companies
+      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
+      PEER_USERS_URL: http://users-be:4001
+    ports:
+      - "4002:4002"
+
+  companies-fe:
+    build:
+      context: ./modules/companies-fe
+      dockerfile: ../../docker/vite-fe.Dockerfile
+    container_name: portal-companies-fe
+    restart: unless-stopped
+    depends_on:
+      - companies-be
+    environment:
+      PORT: 3002
+      VITE_COMPANIES_BE_URL: http://localhost:4002
+      VITE_PORTAL_SHELL_URL: http://localhost:3000
+    ports:
+      - "3002:3002"
+
+  # ---------- foundation: Workspaces module ----------
+
+  workspaces-be:
+    build:
+      context: ./modules/workspaces-be
+      dockerfile: ../../docker/node-be.Dockerfile
+    container_name: portal-workspaces-be
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      users-be:
+        condition: service_started
+      companies-be:
+        condition: service_started
+    environment:
+      PORT: 4003
+      MONGO_URI: mongodb://mongo:27017/sovereign-workspaces
+      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
+      PEER_USERS_URL: http://users-be:4001
+      PEER_COMPANIES_URL: http://companies-be:4002
+    ports:
+      - "4003:4003"
+
+  workspaces-fe:
+    build:
+      context: ./modules/workspaces-fe
+      dockerfile: ../../docker/vite-fe.Dockerfile
+    container_name: portal-workspaces-fe
+    restart: unless-stopped
+    depends_on:
+      - workspaces-be
+    environment:
+      PORT: 3003
+      VITE_WORKSPACES_BE_URL: http://localhost:4003
+      VITE_PORTAL_SHELL_URL: http://localhost:3000
+    ports:
+      - "3003:3003"
+
+  # ---------- demo business module: Customer Support ----------
+  # Reference module built directly from module-template/. Demonstrates a
+  # sovereign business module + its agent sidecar composing against the
+  # foundation through the standard peer-registry mechanism.
+
+  support-be:
+    build:
+      context: ./modules/support-be
+      dockerfile: ../../docker/node-be.Dockerfile
+    container_name: portal-support-be
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      users-be:
+        condition: service_started
+      companies-be:
+        condition: service_started
+      workspaces-be:
+        condition: service_started
+    environment:
+      PORT: 4000
+      MONGO_URI: mongodb://mongo:27017/sovereign-support
+      USER_JWT_SECRET: ${USER_JWT_SECRET:-dev-only-not-for-production}
+      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
+      PEER_USERS_URL: http://users-be:4001
+      PEER_COMPANIES_URL: http://companies-be:4002
+      PEER_WORKSPACES_URL: http://workspaces-be:4003
+    ports:
+      - "4000:4000"
+
+  support-fe:
+    build:
+      context: ./modules/support-fe
+      dockerfile: ../../docker/vite-fe.Dockerfile
+    container_name: portal-support-fe
+    restart: unless-stopped
+    depends_on:
+      - support-be
+    environment:
+      PORT: 3000
+      VITE_SUPPORT_BE_URL: http://localhost:4000
+      VITE_USERS_FE_URL: http://localhost:3001
+      VITE_COMPANIES_FE_URL: http://localhost:3002
+      VITE_WORKSPACES_FE_URL: http://localhost:3003
+    ports:
+      - "3000:3000"
+
+  support-agent:
+    build:
+      context: ./modules/support-agent
+      dockerfile: ../../docker/node-agent.Dockerfile
+    container_name: portal-support-agent
+    restart: unless-stopped
+    depends_on:
+      - support-be
+    environment:
+      PORT: 4100
+      PARENT_BE_URL: http://support-be:4000
+      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "4100:4100"
+
+volumes:
+  mongo-data:
+    driver: local
