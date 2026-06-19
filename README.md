@@ -7,7 +7,7 @@ Sovereign Portal is the open-source foundation underneath modern modular busines
 It runs locally in one command.
 
 ```bash
-git clone --recursive https://github.com/freshifyv2/freshify-sovereign-portal.git
+git clone https://github.com/freshifyv2/freshify-sovereign-portal.git
 cd freshify-sovereign-portal
 cp .env.example .env
 docker compose up
@@ -101,22 +101,23 @@ The Users module owns identity end-to-end: account page, password change, notifi
 
 ## The repos
 
-Sovereign Portal is a meta-repo that pulls each module as a git submodule. The actual code lives in 10 sovereign repos:
+Sovereign Portal is a meta-repo that links the actual code, which lives in 8 sibling repos under the [`freshifyv2`](https://github.com/freshifyv2) GitHub org:
 
 | Repo | What it is | Port (local) |
 |---|---|---|
-| [`freshify-sovereign-portal`](https://github.com/freshifyv2/freshify-sovereign-portal) (this repo) | Meta-repo, compose file, top-level docs, conformance suite | — |
-| [`freshify-sovereign-users-be`](https://github.com/freshifyv2/freshify-sovereign-users-be) | Users module backend | 4001 |
-| [`freshify-sovereign-users-fe`](https://github.com/freshifyv2/freshify-sovereign-users-fe) | Users module frontend | 3001 |
-| [`freshify-sovereign-companies-be`](https://github.com/freshifyv2/freshify-sovereign-companies-be) | Customers module backend | 4002 |
-| [`freshify-sovereign-companies-fe`](https://github.com/freshifyv2/freshify-sovereign-companies-fe) | Customers module frontend | 3002 |
-| [`freshify-sovereign-workspaces-be`](https://github.com/freshifyv2/freshify-sovereign-workspaces-be) | Workspaces module backend | 4003 |
-| [`freshify-sovereign-workspaces-fe`](https://github.com/freshifyv2/freshify-sovereign-workspaces-fe) | Workspaces module frontend | 3003 |
-| [`freshify-sovereign-portal-shell`](https://github.com/freshifyv2/freshify-sovereign-portal-shell) | Portal shell (navigation, tenant switcher, routing) | 3000 |
-| [`freshify-sovereign-module-template`](https://github.com/freshifyv2/freshify-sovereign-module-template) | Reference module + agent. Copy to build your own. | — |
-| [`freshify-sovereign-portal-cli`](https://github.com/freshifyv2/freshify-sovereign-portal-cli) | Scaffolding + conformance: `sovereign-portal new`, `sovereign-portal verify` | — |
+| [`freshify-sovereign-portal`](https://github.com/freshifyv2/freshify-sovereign-portal) (this repo) | Meta-repo, compose file, top-level docs | — |
+| [`freshify-portal-shell`](https://github.com/freshifyv2/freshify-portal-shell) | Portal shell host (navigation, tenant switcher, routing, audit feed) | 3000 |
+| [`freshify-portal-shell-ui`](https://github.com/freshifyv2/freshify-portal-shell-ui) | Shared design-system package (theme, primitives, layout shell) | — |
+| [`freshify-users`](https://github.com/freshifyv2/freshify-users) | Users module backend (auth, sessions, profiles) | 4001 |
+| [`freshify-users-fe`](https://github.com/freshifyv2/freshify-users-fe) | Users module frontend (list, detail, settings, invites) | 3001 |
+| [`freshify-companies`](https://github.com/freshifyv2/freshify-companies) | Customers module backend (companies, roles, scoped permissions) | 4002 |
+| [`freshify-companies-fe`](https://github.com/freshifyv2/freshify-companies-fe) | Customers module frontend (list, detail, registry, settings) | 3002 |
+| [`freshify-workspaces`](https://github.com/freshifyv2/freshify-workspaces) | Workspaces module backend (workspaces, scoped roles, membership) | 4003 |
+| [`freshify-workspaces-fe`](https://github.com/freshifyv2/freshify-workspaces-fe) | Workspaces module frontend (list, detail, role management) | 3003 |
 
-The portal shell, the meta-repo, and the CLI are framework infrastructure. The other seven repos are sovereign modules — same contract as anything you'll build.
+The portal shell, the shell-ui package, and the meta-repo are framework infrastructure. The other six repos are the three sovereign foundation modules (Users, Customers, Workspaces) — backend and frontend each. Every component repo is tagged at the same release (`v0.1.0` as of June 2026) and links back to this meta-repo as its homepage.
+
+A scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`) and a reference business module + module template are on the public roadmap but not yet released.
 
 ---
 
