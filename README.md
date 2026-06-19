@@ -95,7 +95,19 @@ The Users module owns identity end-to-end: account page, password change, notifi
 
 **Standard Module Interface (SMI)** — the contract every sovereign module conforms to. Module registry, peer registry, per-record liveness, dependency cascade, auth adapter, role catalog, agent sidecars. Full spec in [`docs/smi-spec.md`](./docs/smi-spec.md).
 
-**On the public roadmap (not yet released)** — a scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`), a `module-template` you copy to build the next module, and a reference business module (Customer Support) with an AI agent sidecar demonstrating the agent + peer-registry patterns end-to-end. The SMI contracts they rely on are documented in [`docs/smi-spec.md`](./docs/smi-spec.md) today — you can build a sovereign module against that spec without waiting for the template.
+---
+
+## Build it yourself, or hire help
+
+Sovereign Portal is genuinely complete as a foundation. Everything you need to build a sovereign module is in this repo: the SMI spec, three working modules to learn from, a permission model, an anti-patterns guide.
+
+Three categories of acceleration assets are **not** in the public repo — they are part of [Freshify](https://freshify.io)'s commercial offering:
+
+- **Production module library** — battle-tested BE+FE pairs for common business domains (Orders, Inventory, Billing, Locations, Support, CRM). Each one is hours-to-days of work saved vs. building against the SMI from scratch.
+- **Agent training packs** — system prompts, evaluation harnesses, golden datasets, and RAG indexing recipes for sovereign-module AI agents. The SMI describes `/agent/*` routes; making them actually useful is non-trivial ML work.
+- **Production deployment + managed operations** — Terraform/Pulumi recipes, Cloud Run / EKS / Fargate runbooks, secrets layout, migration plans from legacy SaaS, on-call coverage.
+
+The public foundation is fully self-sufficient — you can DIY all of it. The paid offering compresses the timeline from months to weeks. See [SUPPORT.md](./SUPPORT.md) or contact [Freshify](https://freshify.io) for engagement details.
 
 ---
 
@@ -154,7 +166,7 @@ Once the local stack is running, the next step is building your own sovereign mo
 4. **Stand up the FE.** Use the portal-shell's chrome contract — the shared design system + layout primitives live in [`freshify-portal-shell-ui`](https://github.com/freshifyv2/freshify-portal-shell-ui).
 5. **Register it with the portal shell.** Add a peer URL entry pointing at your new BE and FE.
 
-You will write zero auth code, zero tenant-scoping logic, and zero settings-page boilerplate that the foundation modules don't already handle. The scaffolding CLI + module template (on the roadmap) will collapse steps 2–4 into `sovereign-portal new`.
+You will write zero auth code, zero tenant-scoping logic, and zero settings-page boilerplate that the foundation modules don't already handle. If you want to skip steps 2–4 entirely — with a production-tested module starter, the matching agent training pack, and a deployment plan — those are part of [Freshify](https://freshify.io)'s commercial offering. The DIY path is fully supported by this repo.
 
 ---
 

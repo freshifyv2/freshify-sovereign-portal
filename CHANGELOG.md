@@ -27,11 +27,13 @@ First public release.
 - **Documentation** — README with full positioning, repo table, "not in the box" stance; `docs/smi-spec.md`, `docs/permission-model.md`, `docs/module-registry-and-settings.md`, `docs/anti-patterns.md`, `docs/quickstart.md`, `docs/code-stripping-checklist.md`.
 - **Governance files** — LICENSE (Apache-2.0), NOTICE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT in every public repo.
 
-### Roadmap (not in this release)
+### Not in the public foundation
 
-- `freshify-module-template` — a sovereign module starter you copy to build the next module.
-- `sovereign-portal` scaffolding CLI — `sovereign-portal new`, `sovereign-portal verify`.
-- Reference business module (Customer Support) with an AI agent sidecar demonstrating the agent + peer-registry patterns end-to-end.
+The following are part of [Freshify](https://freshify.io)'s commercial offering rather than the public release. The SMI spec is complete and stable — you can build everything below yourself against the public foundation. The paid offering exists to compress that timeline:
+
+- **Production module library** — BE+FE pairs for common business domains (Orders, Inventory, Billing, Locations, Support, CRM).
+- **Agent training packs** — system prompts, evaluation harnesses, golden datasets, RAG indexing recipes for sovereign-module AI agents.
+- **Production deployment + managed operations** — Terraform/Pulumi recipes, Cloud Run / EKS / Fargate runbooks, secrets layout, migration plans from legacy SaaS, on-call coverage.
 
 [Unreleased]: https://github.com/freshifyv2/freshify-sovereign-portal/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/freshifyv2/freshify-sovereign-portal/releases/tag/v0.1.0
