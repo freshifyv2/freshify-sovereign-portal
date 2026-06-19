@@ -211,6 +211,45 @@ services:
     ports:
       - "3000:8080"
 
+  # ---------- one-shot seed (runs once on first boot) ----------
+
+  seed:
+    image: curlimages/curl:8.10.1
+    container_name: portal-seed
+    depends_on:
+      users-be:
+        condition: service_started
+    environment:
+      INTERNAL_S2S_SECRET: ${INTERNAL_S2S_SECRET:-dev-only-not-for-production}
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Wait for users-be to accept traffic
+        for i in $$(seq 1 60); do
+          if curl -sf http://users-be:8080/healthz >/dev/null 2>&1; then break; fi
+          sleep 2
+        done
+        echo ""
+        echo "────────────────────────────────────────────────────────────"
+        echo " Sovereign Portal — bootstrapping operator account"
+        echo "────────────────────────────────────────────────────────────"
+        OUT=$$(curl -sS -X POST \
+          -H "x-internal-secret: $$INTERNAL_S2S_SECRET" \
+          -H "content-type: application/json" \
+          -d '{}' \
+          http://users-be:8080/v1/internal/seed-operator)
+        echo "$$OUT"
+        echo ""
+        echo "────────────────────────────────────────────────────────────"
+        echo " Portal is ready: http://localhost:3000"
+        echo ""
+        echo "   email:    operator@sovereign.local"
+        echo "   password: sovereign-portal-admin"
+        echo ""
+        echo " Or use phone +15555550199 with OTP bypass code 424242."
+        echo "────────────────────────────────────────────────────────────"
+
 volumes:
   mongo-data:
     driver: local

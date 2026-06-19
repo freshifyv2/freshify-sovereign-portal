@@ -1,5 +1,11 @@
 # Sovereign Portal
 
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-blue.svg)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/freshifyv2/freshify-sovereign-portal?include_prereleases&sort=semver)](https://github.com/freshifyv2/freshify-sovereign-portal/releases)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
+[![Stack: Next.js + Express + MongoDB](https://img.shields.io/badge/stack-Next.js%20%2B%20Express%20%2B%20MongoDB-111)](#what-the-foundation-gives-you)
+[![Self-host](https://img.shields.io/badge/deploy-self--hosted-111)](#production-deployment)
+
 **A working sovereign foundation for owned business software — Users, Customers, Workspaces, and a Standard Module Interface for everything you build on top.**
 
 Sovereign Portal is the open-source foundation underneath modern modular business software. You get three working sovereign modules (Users, Customers, Workspaces), a portal shell that hosts them, and a Standard Module Interface (SMI) every module conforms to. Self-host on your own cloud. No SaaS tenant. No license keys. No tiered access.
@@ -14,12 +20,12 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Then open <http://localhost:3000>. Sign in with the bootstrap operator:
+Then open <http://localhost:3000>. The `seed` service runs once on first boot, provisions the operator account, and prints the credentials in the compose logs:
 
 - email: `operator@sovereign.local`
 - password: `sovereign-portal-admin`
 
-A phone+OTP login path is also wired (phone `+15555550199`, OTP bypass code `424242`); the OTP also prints to the `users-be` container logs on first boot. All defaults are overridable in `.env`.
+A phone+OTP login path is also wired (phone `+15555550199`, OTP bypass code `424242`). All defaults are overridable in `.env`.
 
 ---
 

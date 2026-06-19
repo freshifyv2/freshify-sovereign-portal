@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose
+        run: docker compose -f docker-compose.yml config --quiet
+
+      - name: Shellcheck clone-all.sh
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y shellcheck
+          shellcheck scripts/clone-all.sh
