@@ -1,28 +1,38 @@
 # Sovereign Portal — single-command local stack
 #
-# Boots the three foundation modules (Users, Customers, Workspaces) + the
-# portal shell + the Customer Support reference module (BE, FE, agent sidecar)
-# + MongoDB. Total: 8 services. Ready in ~90 seconds on a warm cache.
+# Boots the portal shell + three foundation modules (Users, Customers,
+# Workspaces) — backend and frontend each — plus MongoDB. Total: 8 services.
+# Ready in ~90 seconds on a warm cache.
+#
+# Layout: this compose file builds each service from a sibling repo clone.
+# Run the bundled clone helper first, or clone the seven component repos
+# yourself into the same parent directory as this one:
+#
+#   parent-dir/
+#   ├── freshify-sovereign-portal/   (this repo — contains docker-compose.yml)
+#   ├── freshify-portal-shell/
+#   ├── freshify-users/
+#   ├── freshify-users-fe/
+#   ├── freshify-companies/
+#   ├── freshify-companies-fe/
+#   ├── freshify-workspaces/
+#   └── freshify-workspaces-fe/
 #
 # Usage:
-#   git clone --recursive https://github.com/freshifyv2/freshify-sovereign-portal.git
-#   cd sovereign-portal
+#   git clone https://github.com/freshifyv2/freshify-sovereign-portal.git
+#   cd freshify-sovereign-portal
+#   ./scripts/clone-all.sh         # clones the seven sibling repos
 #   cp .env.example .env
-#   docker compose up
+#   docker compose up --build
 #
-# Then open http://localhost:3000
+# Then open http://localhost:3000.
+#
+# Default operator credentials (printed by users-be on first boot):
+#   email:    operator@sovereign.local
+#   password: sovereign-portal-admin
 #
 # Reset everything (drop database, rebuild images):
 #   docker compose down -v && docker compose up --build
-#
-# Notes:
-#   - The `--recursive` flag pulls each module as a git submodule. If you
-#     cloned without it, run: git submodule update --init
-#   - On first boot the foundation modules seed a default tenant with one
-#     bootstrap operator (login: operator@example.com / OTP printed to logs).
-#   - The Customer Support agent runs against the bundled mock LLM provider.
-#     To swap in a real provider, edit modules/support-agent/.env and set
-#     LLM_PROVIDER + the corresponding API key, then restart that one service.
 
 services:
   # ---------- shared infrastructure ----------
@@ -46,181 +56,160 @@ services:
 
   users-be:
     build:
-      context: ./modules/users-be
-      dockerfile: ../../docker/node-be.Dockerfile
+      context: ../freshify-users
+      dockerfile: Dockerfile
     container_name: portal-users-be
     restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
     environment:
-      PORT: 4001
-      MONGO_URI: mongodb://mongo:27017/sovereign-users
-      JWT_ISSUER: sovereign-portal-local
-      JWT_AUDIENCE: sovereign-portal-local
-      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-dev-mock}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-dev-mock}
-      TWILIO_VERIFY_SID: ${TWILIO_VERIFY_SID:-dev-mock}
-      OTP_PROVIDER: ${OTP_PROVIDER:-console}  # 'console' prints OTP to logs for local dev
+      PORT: 8080
+      LOG_LEVEL: info
+      MONGODB_URI: mongodb://mongo:27017/freshify_users
+      JWT_SECRET: ${JWT_SECRET:-dev-only-not-for-production}
+      INTERNAL_S2S_SECRET: ${INTERNAL_S2S_SECRET:-dev-only-not-for-production}
+      COMPANIES_SERVICE_URL: http://companies-be:8080
+      WORKSPACES_SERVICE_URL: http://workspaces-be:8080
+      PORTAL_PUBLIC_URL: http://localhost:3000
+      # Local dev: bypass real OTP delivery. Operator login also has an
+      # email+password path seeded on first boot.
+      DEV_OTP_PEEK: "1"
+      DEV_OTP_BYPASS: "1"
+      DEV_OTP_BYPASS_CODE: ${DEV_OTP_BYPASS_CODE:-424242}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-10}
+      # Optional: real Twilio OTP. Leave blank to keep DEV_OTP_BYPASS.
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID:-}
+      # Optional: real email via comms module. Not part of the foundation.
+      COMMS_URL: ${COMMS_URL:-}
+      COMMS_SHARED_SECRET: ${COMMS_SHARED_SECRET:-}
+      # Seed operator overrides (defaults are baked in; override here only
+      # if you need a different first-boot operator).
+      SEED_OPERATOR_EMAIL: ${SEED_OPERATOR_EMAIL:-operator@sovereign.local}
+      SEED_OPERATOR_PASSWORD: ${SEED_OPERATOR_PASSWORD:-sovereign-portal-admin}
+      SEED_OPERATOR_PHONE: ${SEED_OPERATOR_PHONE:-+15555550199}
+      SEED_OPERATOR_FIRST_NAME: ${SEED_OPERATOR_FIRST_NAME:-Portal}
+      SEED_OPERATOR_LAST_NAME: ${SEED_OPERATOR_LAST_NAME:-Operator}
     ports:
-      - "4001:4001"
+      - "4001:8080"
 
   users-fe:
     build:
-      context: ./modules/users-fe
-      dockerfile: ../../docker/vite-fe.Dockerfile
+      context: ../freshify-users-fe
+      dockerfile: Dockerfile
     container_name: portal-users-fe
     restart: unless-stopped
     depends_on:
       - users-be
     environment:
-      PORT: 3001
-      VITE_USERS_BE_URL: http://localhost:4001
-      VITE_PORTAL_SHELL_URL: http://localhost:3000
+      PORT: 8080
+      USERS_SERVICE_URL: http://users-be:8080
+      COMPANIES_SERVICE_URL: http://companies-be:8080
+      WORKSPACES_SERVICE_URL: http://workspaces-be:8080
+      PORTAL_SHELL_URL: http://localhost:3000
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-sovereign_session}
     ports:
-      - "3001:3001"
+      - "3001:8080"
 
   # ---------- foundation: Customers (canonical key: 'companies') module ----------
 
   companies-be:
     build:
-      context: ./modules/companies-be
-      dockerfile: ../../docker/node-be.Dockerfile
+      context: ../freshify-companies
+      dockerfile: Dockerfile
     container_name: portal-companies-be
     restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
-      users-be:
-        condition: service_started
     environment:
-      PORT: 4002
-      MONGO_URI: mongodb://mongo:27017/sovereign-companies
-      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
-      PEER_USERS_URL: http://users-be:4001
+      PORT: 8080
+      LOG_LEVEL: info
+      MONGODB_URI: mongodb://mongo:27017/freshify_companies
+      JWT_SECRET: ${JWT_SECRET:-dev-only-not-for-production}
+      INTERNAL_S2S_SECRET: ${INTERNAL_S2S_SECRET:-dev-only-not-for-production}
+      EVENT_INBOUND_SECRET: ${EVENT_INBOUND_SECRET:-dev-only-not-for-production}
+      WORKSPACES_BASE_URL: http://workspaces-be:8080
     ports:
-      - "4002:4002"
+      - "4002:8080"
 
   companies-fe:
     build:
-      context: ./modules/companies-fe
-      dockerfile: ../../docker/vite-fe.Dockerfile
+      context: ../freshify-companies-fe
+      dockerfile: Dockerfile
     container_name: portal-companies-fe
     restart: unless-stopped
     depends_on:
       - companies-be
     environment:
-      PORT: 3002
-      VITE_COMPANIES_BE_URL: http://localhost:4002
-      VITE_PORTAL_SHELL_URL: http://localhost:3000
+      PORT: 8080
+      USERS_SERVICE_URL: http://users-be:8080
+      COMPANIES_SERVICE_URL: http://companies-be:8080
+      WORKSPACES_SERVICE_URL: http://workspaces-be:8080
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-sovereign_session}
     ports:
-      - "3002:3002"
+      - "3002:8080"
 
   # ---------- foundation: Workspaces module ----------
 
   workspaces-be:
     build:
-      context: ./modules/workspaces-be
-      dockerfile: ../../docker/node-be.Dockerfile
+      context: ../freshify-workspaces
+      dockerfile: Dockerfile
     container_name: portal-workspaces-be
     restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
-      users-be:
-        condition: service_started
-      companies-be:
-        condition: service_started
     environment:
-      PORT: 4003
-      MONGO_URI: mongodb://mongo:27017/sovereign-workspaces
-      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
-      PEER_USERS_URL: http://users-be:4001
-      PEER_COMPANIES_URL: http://companies-be:4002
+      PORT: 8080
+      LOG_LEVEL: info
+      MONGODB_URI: mongodb://mongo:27017/freshify_workspaces
+      JWT_SECRET: ${JWT_SECRET:-dev-only-not-for-production}
+      INTERNAL_S2S_SECRET: ${INTERNAL_S2S_SECRET:-dev-only-not-for-production}
+      EVENT_INBOUND_SECRET: ${EVENT_INBOUND_SECRET:-dev-only-not-for-production}
     ports:
-      - "4003:4003"
+      - "4003:8080"
 
   workspaces-fe:
     build:
-      context: ./modules/workspaces-fe
-      dockerfile: ../../docker/vite-fe.Dockerfile
+      context: ../freshify-workspaces-fe
+      dockerfile: Dockerfile
     container_name: portal-workspaces-fe
     restart: unless-stopped
     depends_on:
       - workspaces-be
     environment:
-      PORT: 3003
-      VITE_WORKSPACES_BE_URL: http://localhost:4003
-      VITE_PORTAL_SHELL_URL: http://localhost:3000
+      PORT: 8080
+      USERS_SERVICE_URL: http://users-be:8080
+      COMPANIES_SERVICE_URL: http://companies-be:8080
+      WORKSPACES_SERVICE_URL: http://workspaces-be:8080
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-sovereign_session}
     ports:
-      - "3003:3003"
+      - "3003:8080"
 
-  # ---------- demo business module: Customer Support ----------
-  # Reference module built directly from module-template/. Demonstrates a
-  # sovereign business module + its agent sidecar composing against the
-  # foundation through the standard peer-registry mechanism.
+  # ---------- portal shell (host application) ----------
 
-  support-be:
+  portal-shell:
     build:
-      context: ./modules/support-be
-      dockerfile: ../../docker/node-be.Dockerfile
-    container_name: portal-support-be
+      context: ../freshify-portal-shell
+      dockerfile: Dockerfile
+    container_name: portal-shell
     restart: unless-stopped
     depends_on:
-      mongo:
-        condition: service_healthy
-      users-be:
-        condition: service_started
-      companies-be:
-        condition: service_started
-      workspaces-be:
-        condition: service_started
+      - users-be
+      - companies-be
+      - workspaces-be
     environment:
-      PORT: 4000
-      MONGO_URI: mongodb://mongo:27017/sovereign-support
-      USER_JWT_SECRET: ${USER_JWT_SECRET:-dev-only-not-for-production}
-      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
-      PEER_USERS_URL: http://users-be:4001
-      PEER_COMPANIES_URL: http://companies-be:4002
-      PEER_WORKSPACES_URL: http://workspaces-be:4003
+      PORT: 8080
+      USERS_SERVICE_URL: http://users-be:8080
+      COMPANIES_SERVICE_URL: http://companies-be:8080
+      WORKSPACES_SERVICE_URL: http://workspaces-be:8080
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-sovereign_session}
     ports:
-      - "4000:4000"
-
-  support-fe:
-    build:
-      context: ./modules/support-fe
-      dockerfile: ../../docker/vite-fe.Dockerfile
-    container_name: portal-support-fe
-    restart: unless-stopped
-    depends_on:
-      - support-be
-    environment:
-      PORT: 3000
-      VITE_SUPPORT_BE_URL: http://localhost:4000
-      VITE_USERS_FE_URL: http://localhost:3001
-      VITE_COMPANIES_FE_URL: http://localhost:3002
-      VITE_WORKSPACES_FE_URL: http://localhost:3003
-    ports:
-      - "3000:3000"
-
-  support-agent:
-    build:
-      context: ./modules/support-agent
-      dockerfile: ../../docker/node-agent.Dockerfile
-    container_name: portal-support-agent
-    restart: unless-stopped
-    depends_on:
-      - support-be
-    environment:
-      PORT: 4100
-      PARENT_BE_URL: http://support-be:4000
-      SERVICE_PRINCIPAL_SECRET: ${SERVICE_PRINCIPAL_SECRET:-dev-only-not-for-production}
-      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-    ports:
-      - "4100:4100"
+      - "3000:8080"
 
 volumes:
   mongo-data:

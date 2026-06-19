@@ -2,18 +2,24 @@
 
 **A working sovereign foundation for owned business software — Users, Customers, Workspaces, and a Standard Module Interface for everything you build on top.**
 
-Sovereign Portal is the open-source foundation underneath modern modular business software. You get three working sovereign modules (Users, Customers, Workspaces), a portal shell that hosts them, a Standard Module Interface (SMI) every module conforms to, a reference business module with an AI agent sidecar, and a module template you copy to build the next one. Self-host on your own cloud. No SaaS tenant. No license keys. No tiered access.
+Sovereign Portal is the open-source foundation underneath modern modular business software. You get three working sovereign modules (Users, Customers, Workspaces), a portal shell that hosts them, and a Standard Module Interface (SMI) every module conforms to. Self-host on your own cloud. No SaaS tenant. No license keys. No tiered access.
 
-It runs locally in one command.
+It runs locally in three commands.
 
 ```bash
 git clone https://github.com/freshifyv2/freshify-sovereign-portal.git
 cd freshify-sovereign-portal
+./scripts/clone-all.sh           # clones the seven component repos as siblings
 cp .env.example .env
-docker compose up
+docker compose up --build
 ```
 
-Then open <http://localhost:3000>. The bootstrap operator's login OTP prints to the `users-be` container logs on first boot.
+Then open <http://localhost:3000>. Sign in with the bootstrap operator:
+
+- email: `operator@sovereign.local`
+- password: `sovereign-portal-admin`
+
+A phone+OTP login path is also wired (phone `+15555550199`, OTP bypass code `424242`); the OTP also prints to the `users-be` container logs on first boot. All defaults are overridable in `.env`.
 
 ---
 
@@ -83,9 +89,7 @@ The Users module owns identity end-to-end: account page, password change, notifi
 
 **Standard Module Interface (SMI)** — the contract every sovereign module conforms to. Module registry, peer registry, per-record liveness, dependency cascade, auth adapter, role catalog, agent sidecars. Full spec in [`docs/smi-spec.md`](./docs/smi-spec.md).
 
-**Reference business module** — Customer Support, demonstrating a sovereign business module + its AI agent sidecar composing against the foundation through the standard peer-registry mechanism. Lives in `modules/support-be`, `modules/support-fe`, `modules/support-agent`. Built directly from `module-template/` — same code path, no special treatment.
-
-**Module template** — `module-template/` is what you copy to build a new module. BE + FE + optional agent sidecar. The 30-minute quickstart in [`docs/quickstart.md`](./docs/quickstart.md) takes you from `cp -r module-template orders-fe` to a running sovereign Orders module that lists, creates, and shows orders scoped to a Workspace, with Module Settings, Module Registry, agent hooks, and full SMI conformance.
+**On the public roadmap (not yet released)** — a scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`), a `module-template` you copy to build the next module, and a reference business module (Customer Support) with an AI agent sidecar demonstrating the agent + peer-registry patterns end-to-end. The SMI contracts they rely on are documented in [`docs/smi-spec.md`](./docs/smi-spec.md) today — you can build a sovereign module against that spec without waiting for the template.
 
 ---
 
@@ -94,14 +98,14 @@ The Users module owns identity end-to-end: account page, password change, notifi
 - **No hosted SaaS tenant.** You self-host on your own cloud. Always.
 - **No license keys, no tiered access.** Everything in the public repo is everything you get.
 - **No no-code visual builder.** Your team writes JavaScript modules against the Standard Module Interface. If they can't, this is not the product for you — talk to [Freshify](https://freshify.io) about a custom engagement instead.
-- **No business modules.** Orders, Pricing, Locations, Billing — none of them ship in this repo. They are what you build on top. The `module-template` shows you how.
+- **No business modules.** Orders, Pricing, Locations, Billing — none of them ship in this repo. They are what you build on top, against the Standard Module Interface.
 - **No marketplace.** Each module is a sovereign repo you control.
 
 ---
 
 ## The repos
 
-Sovereign Portal is a meta-repo that links the actual code, which lives in 8 sibling repos under the [`freshifyv2`](https://github.com/freshifyv2) GitHub org:
+Sovereign Portal is a meta-repo that orchestrates the actual code, which lives in eight sibling repos under the [`freshifyv2`](https://github.com/freshifyv2) GitHub org. `docker compose` builds each service directly from its sibling clone:
 
 | Repo | What it is | Port (local) |
 |---|---|---|
@@ -117,7 +121,7 @@ Sovereign Portal is a meta-repo that links the actual code, which lives in 8 sib
 
 The portal shell, the shell-ui package, and the meta-repo are framework infrastructure. The other six repos are the three sovereign foundation modules (Users, Customers, Workspaces) — backend and frontend each. Every component repo is tagged at the same release (`v0.1.0` as of June 2026) and links back to this meta-repo as its homepage.
 
-A scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`) and a reference business module + module template are on the public roadmap but not yet released.
+`scripts/clone-all.sh` clones the seven component repos into the same parent directory as this one. The compose file expects that layout.
 
 ---
 
@@ -125,7 +129,7 @@ A scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`) and a refe
 
 | Doc | What it covers |
 |---|---|
-| [`docs/quickstart.md`](./docs/quickstart.md) | 30-minute walkthrough from `cp -r module-template orders-fe` to a running Orders module. Start here. |
+| [`docs/quickstart.md`](./docs/quickstart.md) | Walkthrough for adding a new sovereign module against the SMI. Start here once the local stack is running. |
 | [`docs/smi-spec.md`](./docs/smi-spec.md) | The Standard Module Interface — registry, peer registry, record-status, dependency-status, auth adapter, agent sidecars. The contract every module conforms to. |
 | [`docs/permission-model.md`](./docs/permission-model.md) | The four-tier scope (User → Customer → Workspace → Module) and three-layer permission check. The conceptual model. |
 | [`docs/module-registry-and-settings.md`](./docs/module-registry-and-settings.md) | The Module Registry shape every module exports, and the Module Settings page every module surfaces. |
@@ -136,27 +140,26 @@ A scaffolding CLI (`sovereign-portal new`, `sovereign-portal verify`) and a refe
 
 ## Quickstart for builders
 
-The 30-minute walkthrough lives in [`docs/quickstart.md`](./docs/quickstart.md). Summary:
+Once the local stack is running, the next step is building your own sovereign module. The full walkthrough lives in [`docs/quickstart.md`](./docs/quickstart.md). Summary:
 
-1. **Boot the foundation.** `docker compose up`. Verify the dashboard renders at <http://localhost:3000>.
-2. **Copy the template.** `cp -r module-template modules/orders-be && cp -r module-template modules/orders-fe`. Rename in the registry.
-3. **Fill in the registry.** Edit `orders-be/src/moduleRegistry.js` with the canonical fields (key, label, attachmentScopes, dependencies, smiPath, ownedCollections, events, capabilities, settingsSchema, perRecordSettingsSchema, roles).
-4. **Add your domain routes.** The template ships the SMI plumbing (`/smi/*`, `/agent/*`); you add `/v1/orders` (or whatever your module's surface is) and a Mongoose model.
-5. **Wire the FE.** The template's `ModuleSettings.jsx` already maps the registry to the five Settings sections — you write the list page, the detail page, the new-record form.
-6. **Verify.** `npx sovereign-portal verify modules/orders-be` runs the conformance suite. Green means you're shipping a sovereign module.
+1. **Boot the foundation.** `./scripts/clone-all.sh && docker compose up --build`. Verify the dashboard renders at <http://localhost:3000>.
+2. **Stand up the BE.** Create a new repo with the SMI surface documented in [`docs/smi-spec.md`](./docs/smi-spec.md): `/smi/registry`, `/smi/records`, `/smi/health`, and your domain routes (`/v1/<your-module>`).
+3. **Fill in the registry.** Export the canonical fields (key, label, attachmentScopes, dependencies, smiPath, ownedCollections, events, capabilities, settingsSchema, perRecordSettingsSchema, roles).
+4. **Stand up the FE.** Use the portal-shell's chrome contract — the shared design system + layout primitives live in [`freshify-portal-shell-ui`](https://github.com/freshifyv2/freshify-portal-shell-ui).
+5. **Register it with the portal shell.** Add a peer URL entry pointing at your new BE and FE.
 
-You will write zero auth code, zero tenant-scoping logic, zero settings-page boilerplate, and zero registry-discovery code. All of that comes from the framework.
+You will write zero auth code, zero tenant-scoping logic, and zero settings-page boilerplate that the foundation modules don't already handle. The scaffolding CLI + module template (on the roadmap) will collapse steps 2–4 into `sovereign-portal new`.
 
 ---
 
 ## Production deployment
 
-The compose file is for local development. For production, each module is a standard Node.js / Vite service that runs anywhere — Kubernetes, Cloud Run, Fargate, an EC2 box. The contracts in the SMI spec are network-protocol-level (HTTP + JSON), so a real deployment looks like:
+The compose file is for local development. For production, each module is a standard Node.js service that runs anywhere — Kubernetes, Cloud Run, Fargate, an EC2 box. The contracts in the SMI spec are network-protocol-level (HTTP + JSON), so a real deployment looks like:
 
 - Each BE deployed independently with its own MongoDB connection
-- Each FE built once and served from your CDN or behind your shell
+- Each FE built once and served behind the portal shell
 - Portal shell deployed once, configured with the peer module URLs
-- A secret manager holding `SERVICE_PRINCIPAL_SECRET`, `USER_JWT_SECRET`, and the IdP credentials
+- A secret manager holding `JWT_SECRET`, `INTERNAL_S2S_SECRET`, `EVENT_INBOUND_SECRET`, and any third-party credentials (Twilio, etc.)
 - A managed MongoDB cluster (Atlas, DocumentDB, self-hosted)
 
 We do not ship Terraform, Helm charts, or Kubernetes manifests in the public repo because they would presuppose a specific cloud and would lock you into Freshify's opinions about your deployment. If you want Freshify to deploy and operate Sovereign Portal for you, see [SUPPORT.md](./SUPPORT.md) — production deployment is a paid engagement.

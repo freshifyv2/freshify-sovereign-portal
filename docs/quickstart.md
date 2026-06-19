@@ -1,5 +1,7 @@
 # Quickstart — build your first sovereign module in 30 minutes
 
+> **Heads up (June 2026):** the `module-template` repo referenced below is on the public roadmap but has not yet been released. The walkthrough is still useful as a *conceptual* tour of what a sovereign module contains — BE, FE, registry, settings page, SMI conformance — and the shape that anything you build today should match. The three foundation modules ([`freshify-users`](https://github.com/freshifyv2/freshify-users), [`freshify-companies`](https://github.com/freshifyv2/freshify-companies), [`freshify-workspaces`](https://github.com/freshifyv2/freshify-workspaces)) are working reference implementations you can read against [`docs/smi-spec.md`](./smi-spec.md) until the template lands.
+
 This walkthrough takes you from a fresh clone of Sovereign Portal to a running sovereign **Orders** module that lists, creates, and shows orders scoped to a Workspace, with a Module Registry and a Module Settings page, fully conformant to the Standard Module Interface (SMI).
 
 The point of the walkthrough is not the Orders module specifically. The point is to see, in one sitting, what a sovereign module actually looks like — so when you build your own, the shape is already familiar.
